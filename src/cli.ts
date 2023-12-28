@@ -1,4 +1,6 @@
-import { program, InvalidArgumentError, OptionValues } from '@commander-js/extra-typings';
+import { program, InvalidArgumentError } from '@commander-js/extra-typings';
+import { configureAction } from './configure';
+import { createNfoAction } from './create-nfo';
 
 program
     .name("anidb-nfo-exporter")
@@ -10,11 +12,7 @@ program
     .description('create configuration file')
     .requiredOption('-u, --anidb-username <username>', 'your anidb username')
     .requiredOption('-p, --anidb-password <password>', 'your anidb password')
-    .action((opts) => {
-        console.log('TODO: implement configure command');
-        console.log(`username=${opts.anidbUsername}`);
-        console.log(`password=${opts.anidbPassword}`);
-    });
+    .action(configureAction);
 
 program
     .command('create-nfo')
@@ -25,11 +23,7 @@ program
         if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
         return id;
     })
-    .action((path: string, opts: OptionValues) => {
-        console.log('TODO: implement create-nfo command');
-        console.log(`path=${path}`);
-        console.log(`aid=${opts.aid}`);
-    });
+    .action(createNfoAction);
 
 program.parse(process.argv);
 

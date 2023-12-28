@@ -90,7 +90,7 @@ declare class AniDB {
 
     anime(id: number): Promise<AniDB_Show>;
 
-    randomRecommendation(): Promise<any>;
+    randomRecommendation(): Promise<AniDB_Show>;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
