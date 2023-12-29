@@ -9,9 +9,13 @@ program
 
 program
     .command('configure')
-    .description('create configuration file')
-    .requiredOption('-u, --anidb-username <username>', 'your anidb username')
-    .requiredOption('-p, --anidb-password <password>', 'your anidb password')
+    .description('update configuration file')
+    .requiredOption('--anidb-client <client>', 'your anidb http client name')
+    .requiredOption('--anidb-version <version>', 'your anidb http client version', (value: string) => {
+        const id = parseInt(value, 10);
+        if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
+        return id;
+    })
     .action(configureAction);
 
 program
