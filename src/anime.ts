@@ -15,17 +15,18 @@ import util from 'node:util';
 import axios from 'axios';
 import xml2js from 'xml2js';
 import levenshtein from 'fast-levenshtein';
+import anidbjs from 'anidbjs';
 import { Config } from './configure';
 
 export type AnimeTitleVariant = {
     title: string;
-    type: string;
-    lang: string;
+    type?: string;
+    language: string;
 }
 
 export type AnimeTitles = {
     anidb: number;
-    title: AnimeTitleVariant[];
+    titles: AnimeTitleVariant[];
 };
 
 type AniDBTitlesTable = {
@@ -41,6 +42,79 @@ export type AnimeIDs = {
 
 type AniDBMappingTable = {
     [anidb: number]: AnimeIDs;
+};
+
+export type AnimeCreator = {
+    id: number;
+    type: string;
+    name: string;
+};
+
+export type AnimeTag = {
+    id: number;
+    weight: number;
+    localSpoiler: boolean;
+    globalSpoiler: boolean;
+    name: string;
+    description: string;
+    updatedAt: string;
+    pictureUrl?: string;
+};
+
+export type AnimeSeiyuu = {
+    id: number;
+    picture?: string;
+    name: string;
+};
+
+export type AnimeCharacterType = {
+    id: number,
+    name: string;
+};
+
+export type AnimeCharacter = {
+    id: number;
+    type: string;
+    updatedAt: string;
+    rating: number;
+    votes: number;
+    name: string;
+    gender: string;
+    characterType: AnimeCharacterType;
+    description: string;
+    picture?: string;
+    seiyuu: AnimeSeiyuu[];
+};
+
+export type AnimeEpisode = {
+    id: number;
+    updatedAt: string;
+    episodeNumber: string;
+    type: number;
+    length: number;
+    airDate: string;
+    rating: number | null;
+    votes: number | null;
+    titles: AnimeTitleVariant[];
+    summary: string | null;
+};
+
+
+export type AnimeMetadata = {
+    id: number;
+    ageRestricted: boolean;
+    type: string;
+    episodeCount: number;
+    startDate: string;
+    endDate: string;
+    titles: AnimeTitleVariant[];
+    description: string;
+    picture: string;
+    url: string;
+    creators: AnimeCreator[];
+    tags: AnimeTag[];
+    characters: AnimeCharacter[];
+    episodes: AnimeEpisode[];
 };
 
 type PlexMetaManagerIDs = {
@@ -103,7 +177,7 @@ export class AniDBMapper {
         let best_match_score: number = 0;
 
         Object.values(this.titlesTable).forEach((title: AnimeTitles) => {
-            title.title?.forEach((variant: AnimeTitleVariant) => {
+            title.titles?.forEach((variant: AnimeTitleVariant) => {
                 if (variant.title == titleNormalized) {
                     exact_match = title;
                 } else {
@@ -161,10 +235,10 @@ export class AniDBMapper {
         this.mappingTable[aid] = ids;
     }
 
-    private updateTitles(aid: number, title: AnimeTitleVariant[]): void {
+    private updateTitles(aid: number, titles: AnimeTitleVariant[]): void {
         this.titlesTable[aid] = {
             anidb: aid,
-            title: title,
+            titles: titles,
         } as AnimeTitles;
     }
 
@@ -172,7 +246,7 @@ export class AniDBMapper {
         // skip if cache is fresh
         if (fs.existsSync(ds.cache)) {
             const cacheStats = fs.statSync(ds.cache);
-            if (((new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24) > ds.maxAge) {
+            if (((new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24) < ds.maxAge) {
                  return true;
             }
         }
@@ -206,18 +280,18 @@ export class AniDBMapper {
             if (err !== null) parserStatus = false;
             result.animetitles?.anime?.forEach((anime: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                 const aid: number = parseInt(anime.$?.aid);
-                const title: AnimeTitleVariant[] = [];
+                const titles: AnimeTitleVariant[] = [];
                 anime.title?.forEach((titleData: any) => {
                     const titleVariant: AnimeTitleVariant = {
                         title: titleData._,
                         type: titleData.$?.type,
-                        lang: titleData.$['xml:lang'],
+                        language: titleData.$['xml:lang'],
                     };
-                    if (['official', 'main'].includes(titleVariant.type)) {
-                        title.push(titleVariant);
+                    if ((titleVariant.type !== undefined) && (['official', 'main'].includes(titleVariant.type))) {
+                        titles.push(titleVariant);
                     }
                 });
-                this.updateTitles(aid, title);
+                this.updateTitles(aid, titles);
             });
         });
         /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -247,6 +321,63 @@ export class AniDBMapper {
 
         return true;
     }
+}
+
+
+export class AniDBMetadata {
+    private client;
+    private cachePath: string;
+    private cacheAge: number;
+
+    public constructor(config: Config) {
+        this.client = new anidbjs({
+            client: config.anidb.client.name,
+            version: config.anidb.client.version,
+        });
+        this.cachePath = config.cache.path;
+        this.cacheAge = config.cache.anidb_age;
+    }
+
+    public toString(): string {
+        return 'AniDBMetadata';
+    }
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    public async get(id: AnimeIDs): Promise<AnimeMetadata | undefined> {
+        let metadata: undefined;
+
+        // skip if cache is fresh
+        const dbCacheFile: string = path.join(this.cachePath, 'anidb', `${id.anidb}.json`);
+        if (fs.existsSync(dbCacheFile)) {
+            const cacheStats = fs.statSync(dbCacheFile);
+            if (((new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24) < this.cacheAge) {
+                return JSON.parse(fs.readFileSync(dbCacheFile, 'utf8')) as AnimeMetadata;
+            }
+        }
+
+        // update cache
+        try {
+            // ensure cache dir exists
+            fs.mkdirSync(path.dirname(dbCacheFile), { recursive: true, mode: 0o750 });
+
+            // query anidb and store
+            await this.client.anime(id.anidb).then((res: any) => {
+                fs.writeFileSync(dbCacheFile, JSON.stringify(res), {encoding: 'utf8', mode: 0o660});
+                metadata = res;
+            }).catch((err: any) => {
+                if (err.status == 'Client version missing or invalid') {
+                    throw new Error("Please register a HTTP client on anidb and run 'configure' command again!");
+                } else {
+                    throw new Error(err.status);
+                }
+            });
+        } catch(err) {
+            return undefined;
+        }
+
+        return metadata;
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 // vim: tabstop=4 shiftwidth=4 softtabstop=0 smarttab expandtab
