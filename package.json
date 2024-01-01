@@ -9,6 +9,9 @@
     "lint": "npx eslint . --ext .ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "anidbne": "dist/cli.js"
+  },
   "keywords": [],
   "author": "sjorge",
   "license": "MIT",

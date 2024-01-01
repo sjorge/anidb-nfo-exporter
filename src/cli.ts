@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { program, InvalidArgumentError } from '@commander-js/extra-typings';
 import { configureAction } from './configure';
 import { createNfoAction } from './create-nfo';
