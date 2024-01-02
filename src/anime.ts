@@ -15,7 +15,7 @@ import util from 'node:util';
 import axios from 'axios';
 import xml2js from 'xml2js';
 import levenshtein from 'fast-levenshtein';
-import anidbjs from 'anidbjs';
+import anidbjs, { AniDB_Show } from 'anidbjs';
 import { Config } from './configure';
 
 export type AnimeTitleVariant = {
@@ -42,79 +42,6 @@ export type AnimeIDs = {
 
 type AniDBMappingTable = {
     [anidb: number]: AnimeIDs;
-};
-
-export type AnimeCreator = {
-    id: number;
-    type: string;
-    name: string;
-};
-
-export type AnimeTag = {
-    id: number;
-    weight: number;
-    localSpoiler: boolean;
-    globalSpoiler: boolean;
-    name: string;
-    description: string;
-    updatedAt: string;
-    pictureUrl?: string;
-};
-
-export type AnimeSeiyuu = {
-    id: number;
-    picture?: string;
-    name: string;
-};
-
-export type AnimeCharacterType = {
-    id: number,
-    name: string;
-};
-
-export type AnimeCharacter = {
-    id: number;
-    type: string;
-    updatedAt: string;
-    rating: number;
-    votes: number;
-    name: string;
-    gender: string;
-    characterType: AnimeCharacterType;
-    description: string;
-    picture?: string;
-    seiyuu: AnimeSeiyuu[];
-};
-
-export type AnimeEpisode = {
-    id: number;
-    updatedAt: string;
-    episodeNumber: string;
-    type: number;
-    length: number;
-    airDate: string;
-    rating: number | null;
-    votes: number | null;
-    titles: AnimeTitleVariant[];
-    summary: string | null;
-};
-
-
-export type AnimeMetadata = {
-    id: number;
-    ageRestricted: boolean;
-    type: string;
-    episodeCount: number;
-    startDate: string;
-    endDate: string;
-    titles: AnimeTitleVariant[];
-    description: string;
-    picture: string;
-    url: string;
-    creators: AnimeCreator[];
-    tags: AnimeTag[];
-    characters: AnimeCharacter[];
-    episodes: AnimeEpisode[];
 };
 
 type PlexMetaManagerIDs = {
@@ -343,7 +270,7 @@ export class AniDBMetadata {
     }
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    public async get(id: AnimeIDs): Promise<AnimeMetadata | undefined> {
+    public async get(id: AnimeIDs): Promise<AniDB_Show | undefined> {
         let metadata: undefined;
 
         // skip if cache is fresh
@@ -351,7 +278,7 @@ export class AniDBMetadata {
         if (fs.existsSync(dbCacheFile)) {
             const cacheStats = fs.statSync(dbCacheFile);
             if (((new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24) < this.cacheAge) {
-                return JSON.parse(fs.readFileSync(dbCacheFile, 'utf8')) as AnimeMetadata;
+                return JSON.parse(fs.readFileSync(dbCacheFile, 'utf8')) as AniDB_Show;
             }
         }
 
