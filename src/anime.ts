@@ -24,13 +24,8 @@ export type AnimeTitleVariant = {
     language: string;
 }
 
-export type AnimeTitles = {
-    anidb: number;
-    titles: AnimeTitleVariant[];
-};
-
-type AniDBTitlesTable = {
-    [anidb: number]: AnimeTitles;
+type TitleTable = {
+    [anidb: number]: AnimeTitleVariant[];
 };
 
 export type AnimeIDs = {
@@ -40,21 +35,19 @@ export type AnimeIDs = {
     tvdbSeason?: number;
 };
 
-type AniDBMappingTable = {
+type MappingTable = {
     [anidb: number]: AnimeIDs;
 };
 
-type PlexMetaManagerIDs = {
-    tvdb_id?: number;
-    tvdb_season?: number;
-    tvdb_epoffset?: number;
-    mal_id?: number;
-    anilist_id?: number;
-    imdb_id?: string;
-};
-
-type PlexMetaManagerMappingTable = {
-    [anidb: string]: PlexMetaManagerIDs;
+type PlexMetaManagerMapping = {
+    [anidb: string]: {
+        tvdb_id?: number;
+        tvdb_season?: number;
+        tvdb_epoffset?: number;
+        mal_id?: number;
+        anilist_id?: number;
+        imdb_id?: string;
+    };
 };
 
 type DataSource = {
@@ -67,8 +60,8 @@ export class AniDBMapper {
     private fuzzyMatchThreshhold: number = 5;
     private dataSourceAniDB: DataSource;
     private dataSourcePMM: DataSource;
-    private mappingTable: AniDBMappingTable = {};
-    private titlesTable: AniDBTitlesTable = {};
+    private mappingTable: MappingTable = {};
+    private titlesTable: TitleTable = {};
 
     public constructor(config: Config) {
         this.dataSourceAniDB = {
@@ -99,14 +92,16 @@ export class AniDBMapper {
         // fuzzy search
         const titleNormalized: string = title.replace('⁄', '/');
 
-        let exact_match: AnimeTitles | undefined;
-        let best_match: AnimeTitles | undefined;
+        let exact_match: number | undefined;
+        let best_match: number | undefined;
         let best_match_score: number = 0;
 
-        Object.values(this.titlesTable).forEach((title: AnimeTitles) => {
-            title.titles?.forEach((variant: AnimeTitleVariant) => {
+        Object.entries(this.titlesTable).forEach(([key, value]) => {
+            const aid: number = parseInt(key);
+            const titles: AnimeTitleVariant[] = value;
+            titles.forEach((variant: AnimeTitleVariant) => {
                 if (variant.title == titleNormalized) {
-                    exact_match = title;
+                    exact_match = aid;
                 } else {
                     const distance: number = levenshtein.get(
                         titleNormalized,
@@ -115,7 +110,7 @@ export class AniDBMapper {
                     );
                     if (distance <= this.fuzzyMatchThreshhold) {
                         if ((best_match == undefined) || (best_match_score > distance)) {
-                            best_match = title;
+                            best_match = aid;
                             best_match_score = distance;
                         }
                     }
@@ -125,9 +120,9 @@ export class AniDBMapper {
         });
 
         if (exact_match !== undefined) {
-            return this.fromId(exact_match.anidb);
+            return this.fromId(exact_match);
         } else if (best_match !== undefined) {
-            return this.fromId(best_match.anidb);
+            return this.fromId(best_match);
         }
 
         return undefined;
@@ -137,7 +132,7 @@ export class AniDBMapper {
         return this.mappingTable[aid];
     }
 
-    public titleFromId(aid: number): AnimeTitles | undefined {
+    public titleFromId(aid: number): AnimeTitleVariant[] {
         return this.titlesTable[aid];
     }
 
@@ -163,10 +158,7 @@ export class AniDBMapper {
     }
 
     private updateTitles(aid: number, titles: AnimeTitleVariant[]): void {
-        this.titlesTable[aid] = {
-            anidb: aid,
-            titles: titles,
-        } as AnimeTitles;
+        this.titlesTable[aid] = titles;
     }
 
     private async updateDataSource(ds: DataSource): Promise<boolean> {
@@ -227,7 +219,7 @@ export class AniDBMapper {
     }
 
     private parseDataSourcePMM(): boolean {
-        const data: PlexMetaManagerMappingTable = JSON.parse(fs.readFileSync(this.dataSourcePMM.cache, 'utf8'));
+        const data: PlexMetaManagerMapping = JSON.parse(fs.readFileSync(this.dataSourcePMM.cache, 'utf8'));
 
         for (const key in data) {
             const ids = data[key];

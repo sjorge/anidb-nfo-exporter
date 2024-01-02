@@ -51,7 +51,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
         process.exitCode = 1;
         return;
     } else {
-        mapper.titleFromId(id.anidb)?.titles?.forEach((t: AnimeTitleVariant) => {
+        mapper.titleFromId(id.anidb)?.forEach((t: AnimeTitleVariant) => {
             if ((t.type == 'main') && (t.language == 'x-jat')) {
                 title = t.title;
             }
