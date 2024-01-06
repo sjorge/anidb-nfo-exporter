@@ -16,6 +16,7 @@ import axios from 'axios';
 import xml2js from 'xml2js';
 import levenshtein from 'fast-levenshtein';
 import anidbjs, { AniDB_Show } from 'anidbjs';
+import AniList from "anilist-node";
 import { Config } from './configure';
 
 export type AnimeTitleVariant = {
@@ -62,8 +63,14 @@ export class AniDBMapper {
     private dataSourcePMM: DataSource;
     private mappingTable: MappingTable = {};
     private titlesTable: TitleTable = {};
+    private clientAnilist;
 
     public constructor(config: Config) {
+        if (config.anilist.token) {
+            this.clientAnilist = new AniList(
+                config.anilist.token,
+            );
+        }
         this.dataSourceAniDB = {
             url: 'https://anidb.net/api/anime-titles.xml.gz',
             cache: path.join(config.cache.path, 'anime-titles.xml'),
@@ -134,6 +141,29 @@ export class AniDBMapper {
 
     public titleFromId(aid: number): AnimeTitleVariant[] {
         return this.titlesTable[aid];
+    }
+
+    public async queryAnilistId(aid: number): Promise<AnimeIDs | undefined> {
+        const ids = this.fromId(aid);
+        if (ids == undefined) return ids;
+        if (ids?.anilist) return ids;
+
+        // select official japanese title
+        const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
+            if ((t.type == "official") && (t.language == 'ja')) {
+                return t;
+            }
+        });
+
+        const result = await this.clientAnilist?.searchEntry.anime(mainTitle[0].title);
+        result?.media.forEach((media) => {
+            if (media.title.native == mainTitle[0].title) {
+                ids.anilist = media.id;
+                this.updateMapping(aid, media.id);
+            }
+        });
+
+        return ids;
     }
 
     private updateMapping(aid: number, anilist?: number, tvdb?: number, tvdbSeason?: number): void {
@@ -244,12 +274,12 @@ export class AniDBMapper {
 
 
 export class AniDBMetadata {
-    private client;
+    private clientAniDB;
     private cachePath: string;
     private cacheAge: number;
 
     public constructor(config: Config) {
-        this.client = new anidbjs({
+        this.clientAniDB = new anidbjs({
             client: config.anidb.client.name,
             version: config.anidb.client.version,
         });
@@ -280,7 +310,7 @@ export class AniDBMetadata {
             fs.mkdirSync(path.dirname(dbCacheFile), { recursive: true, mode: 0o750 });
 
             // query anidb and store
-            await this.client.anime(id.anidb).then((res: any) => {
+            await this.clientAniDB.anime(id.anidb).then((res: any) => {
                 fs.writeFileSync(dbCacheFile, JSON.stringify(res), {encoding: 'utf8', mode: 0o660});
                 metadata = res;
             }).catch((err: any) => {
