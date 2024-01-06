@@ -155,13 +155,20 @@ export class AniDBMapper {
             }
         });
 
+        let exactMatch = false;
         const result = await this.clientAnilist?.searchEntry.anime(mainTitle[0].title);
         result?.media.forEach((media) => {
             if (media.title.native == mainTitle[0].title) {
                 ids.anilist = media.id;
+                exactMatch = true;
                 this.updateMapping(aid, media.id);
             }
         });
+        if (!exactMatch && (result?.media.length == 1)) {
+            ids.anilist = result?.media[0].id;
+            exactMatch = true;
+            this.updateMapping(aid, result?.media[0].id);
+        }
 
         return ids;
     }
