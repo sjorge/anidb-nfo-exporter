@@ -3,13 +3,18 @@ import process from 'node:process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Config, readConfig } from './configure';
-import { Anime, AnimeNfo, UniqueId } from './nfo';
+import {
+    Anime, AnimeNfo,
+    Episode, EpisodeNfo,
+    UniqueId
+} from './nfo';
 import {
     AniDBMetadata,
     AniDBMapper,
     AnimeIDs,
     AnimeTitleVariant,
 } from './anime';
+import { EpisodeMapper, EpisodeFile } from './episode';
 
 export async function createNfoAction(animeDir: string, opts: OptionValues): Promise<void> {
     // sanity check config (only for udp client)
@@ -99,7 +104,50 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
             // write NFO
             const nfo = new AnimeNfo(anime, animeDir);
-            await nfo.write();
+            if (await nfo.write()) {
+                const episodeMapper = new EpisodeMapper(animeDir);
+
+                episodeMapper.episodes().forEach((file: EpisodeFile) => {
+                    const multiEpisode: Episode[] = [];
+                    for (let ep = parseInt(file.episodeStart); ep <= parseInt(file.episodeEnd); ep++) {
+                        data?.episodes?.forEach((episodeMetadata) => {
+                            if (episodeMetadata.episodeNumber == `${ep}`) {
+                                const episode: Episode = {
+                                    uniqueId: [ {type: "anidb", id: episodeMetadata.id, default: true} as UniqueId ],
+                                    title: file.title,
+                                };
+                                switch (episodeMetadata.type) {
+                                    case 1:
+                                        episode.season = 1;
+                                        episode.episode = parseInt(episodeMetadata.episodeNumber);
+                                        break;
+                                    default:
+                                        episode.season = 0;
+                                        episode.episode = (parseInt(episodeMetadata.episodeNumber.substring(1)) + (episodeMetadata.type * 100));
+                                        break;
+                                }
+                                if (episodeMetadata.airDate) episode.premiered = episodeMetadata.airDate;
+
+                                // WARN: jellyfin seems to do better without season/plot hints
+                                //if (episodeMetadata.summary) episode.plot = episodeMetadata.summary;
+
+                                episodeMetadata.titles.forEach((t: AnimeTitleVariant) => {
+                                    if (t.language == 'en') {
+                                        episode.title = t.title;
+                                    } else if (t.language == 'ja') {
+                                        episode.originaltitle = t.title;
+                                    }
+                                });
+
+                                multiEpisode.push(episode);
+                            }
+                        });
+                    }
+
+                    const episodeNfo = new EpisodeNfo(multiEpisode, file.path);
+                    episodeNfo.write();
+                });
+            }
         } catch(err) {
             console.error((err as Error).message);
             process.exitCode = 1;
