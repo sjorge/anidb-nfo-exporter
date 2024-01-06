@@ -51,6 +51,9 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
         }
     }
 
+    // try to complete anilist ID if missing by searching
+    if (id?.anidb) id = await mapper.queryAnilistId(id.anidb);
+
     if (id == undefined) {
         console.error('Failed to map anidb id from title.');
         process.exitCode = 1;
