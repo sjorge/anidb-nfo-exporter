@@ -6,25 +6,22 @@ import process from 'node:process';
 import toml from '@iarna/toml';
 import { deepmerge } from 'deepmerge-ts';
 
-export type AniDBClientConfig = {
-    name?: string;
-    version?: number;
-};
-
-export type AniDBConfig = {
-    url: string;
-    client: AniDBClientConfig;
-};
-
-export type CacheConfig = {
-    path: string;
-    anidb_age: number;
-    mapping_age: number;
-};
-
 export type Config = {
-    anidb: AniDBConfig;
-    cache: CacheConfig;
+    anidb: {
+        url: string;
+        client: {
+            name?: string;
+            version?: number;
+        }
+    };
+    anilist: {
+        token?: string;
+    };
+    cache: {
+        path: string;
+        anidb_age: number;
+        mapping_age: number;
+    };
 };
 
 const configFile: string = path.join(os.homedir(), '.config', 'anidbne', 'config.toml');
@@ -35,6 +32,7 @@ export function readConfig(): Config {
             url: 'http://api.anidb.net:9001/httpapi',
             client: { },
         },
+        anilist: {},
         cache: {
             path: path.join(os.homedir(), '.cache', 'anidbne'),
             anidb_age: 90,
@@ -69,6 +67,7 @@ export async function configureAction(opts: OptionValues): Promise<void> {
     const config: Config = readConfig();
     config.anidb.client.name = `${opts.anidbClient}`;
     config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
+    if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
     if(!writeConfig(config)) {
         console.error(`Failed to update ${configFile}!`);
         process.exitCode = 1;
