@@ -9,7 +9,7 @@ import path from 'node:path';
 import stream from 'node:stream';
 import util from 'node:util';
 import axios from 'axios';
-import { create } from 'xmlbuilder2';
+import { create, fragment } from 'xmlbuilder2';
 
 export type UniqueId = {
     id: string|number;
@@ -38,6 +38,16 @@ export type Anime = {
     studio?: string[];
     actor?: Actor[];
     poster?: string;
+};
+
+export type Episode = {
+    uniqueId: UniqueId[];
+    title: string;
+    originaltitle?: string;
+    premiered?: string;
+    season?: number;
+    episode?: number;
+    plot?: string;
 };
 
 export class AnimeNfo {
@@ -139,6 +149,114 @@ export class AnimeNfo {
                     await util.promisify(stream.finished)(writer);
                 });
             }
+        }
+
+        return true;
+    }
+}
+
+export class EpisodeNfo {
+    private episode: Episode[];
+    private path: string;
+
+    public constructor(episode: Episode[], episodePath: string) {
+        this.episode = episode;
+        this.path = episodePath;
+
+        // check path exists
+        if(!fs.existsSync(this.path) || !fs.statSync(this.path).isFile()) {
+            throw new Error(`The path '${this.path}' does not exist or is not a directory!`);
+        }
+    }
+
+    public toString(): string {
+        return `EpisodeNfo(title=${this.episode[0].title})`;
+    }
+
+    public isValid(): boolean {
+        let isValid = true;
+
+        this.episode = this.episode.map((episode: Episode) => {
+            // NOTE: uniqueId must minimally have one entry
+            if (Object.values(episode.uniqueId).length < 1) {
+                isValid = false;
+                return episode;
+            }
+
+            // NOTE: if we only have one uniqueId, it must be the default
+            if (Object.values(episode.uniqueId).length == 1) {
+                episode.uniqueId[0].default = true;
+            }
+
+            // NOTE: we need to have exactly one default uniqueId
+            if (episode.uniqueId.filter((id: UniqueId) => id.default === true).length !== 1) {
+                isValid = false;
+                return episode;
+            }
+
+            // NOTE: premiered must be YYYY-MM-DD format if specified
+            if (episode.premiered) {
+                const premieredRegEx = new RegExp(/(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/);
+                if (!premieredRegEx.test(episode.premiered)) {
+                    isValid = false;
+                    return episode;
+                }
+                if (isNaN(Date.parse(episode.premiered))) {
+                    isValid = false;
+                    return episode;
+                }
+            }
+
+            return episode;
+        });
+
+        return isValid;
+    }
+
+    public async write(): Promise<boolean> {
+        const nfoPath = path.format({
+            dir: path.dirname(this.path),
+            name: path.basename(this.path, path.extname(this.path)),
+            ext: '.nfo',
+        });
+
+        // ensure episode is valid
+        if (!this.isValid()) {
+            throw new Error(`Cannot write invalid data to "${nfoPath}" file!`);
+        }
+
+        // create episode.nfo XML data
+        const nfo = fragment({ version: '1.0', encoding: 'utf-8' });
+
+        this.episode.forEach((episode: Episode) => {
+            const episodedetails = nfo.ele('episodedetails');
+            episodedetails.ele('title').txt(episode.title);
+
+            episode.uniqueId.forEach((id: UniqueId) => {
+                const nfoUniqueId = episodedetails.ele('uniqueid');
+                nfoUniqueId.txt(`${id.id}`);
+                nfoUniqueId.att('type', id.type);
+                nfoUniqueId.att('default', `${id.default === true}`)
+            });
+
+            if (episode.originaltitle !== undefined) episodedetails.ele('originaltitle').txt(episode.originaltitle);
+
+            for (const key of ['premiered', 'season', 'episode', 'plot']) {
+                const objKey = key as keyof typeof episode;
+                if (episode[objKey] !== undefined) {
+                    episodedetails.ele(key).txt(`${episode[objKey]}`);
+                }
+            }
+        });
+
+        // write .nfo
+        try {
+            // NOTE: nfo is a fragment as it has multiple episodedetails
+            //       without a root node, this is invalid XML but it is what
+            //       kodi/jellyfin expect.
+            fs.writeFileSync(nfoPath, '<?xml version="1.0" encoding="utf-8"?>' + "\n" + nfo.end({ prettyPrint: true }));
+        } catch (error) {
+            return false;
         }
 
         return true;
