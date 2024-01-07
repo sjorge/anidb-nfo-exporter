@@ -81,7 +81,8 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                 title: title.replace("`", "'"),
             };
 
-            if (id.tvdb) anime.uniqueId.push({type: "tvdb", id: id.tvdb} as UniqueId);
+            // WARN: tvdb mapping cause weird issues
+            //if (id.tvdb) anime.uniqueId.push({type: "tvdb", id: id.tvdb} as UniqueId);
             if (id.anilist) anime.uniqueId.push({type: "anilist", id: id.anilist} as UniqueId)
 
             data.titles.forEach((t: AnimeTitleVariant) => {
