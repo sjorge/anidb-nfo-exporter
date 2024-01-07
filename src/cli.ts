@@ -17,6 +17,7 @@ program
         if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
         return id;
     })
+    .option('--anidb-poster <yes/no>', 'enable anidb poster fetching')
     .option('--anilist-token <token>', 'your anilist http client token')
     .action(configureAction);
 

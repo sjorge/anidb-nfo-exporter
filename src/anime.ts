@@ -323,12 +323,14 @@ export class AniDBMetadata {
             }).catch((err: any) => {
                 if (err.status == 'Client version missing or invalid') {
                     throw new Error("Please register a HTTP client on anidb and run 'configure' command again!");
+                } else if (err.status == 'Banned') {
+                    throw new Error("Please try again in 24h, we are currently banned!");
                 } else {
                     throw new Error(err.status);
                 }
             });
         } catch(err) {
-            throw new Error(err.status);
+            return undefined;
         }
 
         return metadata;

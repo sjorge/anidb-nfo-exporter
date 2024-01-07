@@ -13,6 +13,7 @@ export type Config = {
             name?: string;
             version?: number;
         }
+        poster: boolean;
     };
     anilist: {
         token?: string;
@@ -31,6 +32,7 @@ export function readConfig(): Config {
         anidb: {
             url: 'http://api.anidb.net:9001/httpapi',
             client: { },
+            poster: false,
         },
         anilist: {},
         cache: {
@@ -68,6 +70,7 @@ export async function configureAction(opts: OptionValues): Promise<void> {
     config.anidb.client.name = `${opts.anidbClient}`;
     config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
     if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
+    if (opts.anidbPoster) config.anidb.poster = (`${opts.anilistToken}` == "yes");
     if(!writeConfig(config)) {
         console.error(`Failed to update ${configFile}!`);
         process.exitCode = 1;

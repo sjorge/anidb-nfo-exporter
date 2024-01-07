@@ -107,7 +107,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
             // write NFO
             const nfo = new AnimeNfo(anime, animeDir);
-            if (await nfo.write()) {
+            if (await nfo.write(config.anidb.poster)) {
                 const episodeMapper = new EpisodeMapper(animeDir);
 
                 episodeMapper.episodes().forEach((file: EpisodeFile) => {
