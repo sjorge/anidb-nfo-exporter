@@ -328,7 +328,7 @@ export class AniDBMetadata {
                 }
             });
         } catch(err) {
-            return undefined;
+            throw new Error(err.status);
         }
 
         return metadata;
