@@ -78,7 +78,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
             // create anime object
             const anime: Anime = {
                 uniqueId: [ {type: "anidb", id: id.anidb, default: true} as UniqueId ],
-                title: title,
+                title: title.replace("`", "'"),
             };
 
             if (id.tvdb) anime.uniqueId.push({type: "tvdb", id: id.tvdb} as UniqueId);
@@ -86,9 +86,9 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
             data.titles.forEach((t: AnimeTitleVariant) => {
                 if ((t.type == 'main') && (t.language == 'x-jat')) {
-                    anime.title = t.title;
+                    anime.title = t.title.replace("`", "'");
                 } else if ((t.type == 'official') && (t.language == 'ja')) {
-                    anime.originaltitle = t.title;
+                    anime.originaltitle = t.title.replace("`", "'");
                 }
             });
 
@@ -117,7 +117,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                             if (episodeMetadata.episodeNumber == `${ep}`) {
                                 const episode: Episode = {
                                     uniqueId: [ {type: "anidb", id: episodeMetadata.id, default: true} as UniqueId ],
-                                    title: file.title,
+                                    title: file.title.replace("`", "'"),
                                 };
                                 switch (episodeMetadata.type) {
                                     case 1:
@@ -136,9 +136,9 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
                                 episodeMetadata.titles.forEach((t: AnimeTitleVariant) => {
                                     if (t.language == 'en') {
-                                        episode.title = t.title;
+                                        episode.title = t.title.replace("`", "'");
                                     } else if (t.language == 'ja') {
-                                        episode.originaltitle = t.title;
+                                        episode.originaltitle = t.title.replace("`", "'");
                                     }
                                 });
 
