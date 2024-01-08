@@ -113,7 +113,11 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                 }
             });
 
-            anime.premiered = data.startDate;
+            if (data.startDate && (data.startDate.length == 10)) {
+                anime.premiered = data.startDate;
+            } else if (data.startDate && (data.startDate.length == 7)) {
+                anime.premiered = `${data.startDate}-01`;
+            }
 
             // WARN: jellyfin seems to do better without season/plot hints
             /*
@@ -162,7 +166,11 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                                         episode.episode = (parseInt(episodeMetadata.episodeNumber.substring(1)) + (episodeMetadata.type * 100));
                                         break;
                                 }
-                                if (episodeMetadata.airDate) episode.premiered = episodeMetadata.airDate;
+                                if (episodeMetadata.airDate && (episodeMetadata.airDate.length == 10)) {
+                                    episode.premiered = episodeMetadata.airDate;
+                                } else if (episodeMetadata.airDate && (episodeMetadata.airDate.length == 7)) {
+                                    episode.premiered = `${episodeMetadata.airDate}-01`;
+                                }
 
                                 // WARN: jellyfin seems to do better without season/plot hints
                                 //if (episodeMetadata.summary) episode.plot = episodeMetadata.summary;
