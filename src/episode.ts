@@ -53,7 +53,7 @@ export class EpisodeMapper {
                         path: path.join(this.path, episodePath),
                         episodeStart: episode,
                         episodeEnd: episode,
-                        title: title,
+                        title: title.trim(),
                     } as EpisodeFile);
                 } else if (anidbMultiTitleMatches) {
                     let title = anidbMultiTitleMatches?.title;
@@ -67,7 +67,7 @@ export class EpisodeMapper {
                         path: path.join(this.path, episodePath),
                         episodeStart: episode[0],
                         episodeEnd: episode[1],
-                        title: title,
+                        title: title.trim(),
                     } as EpisodeFile);
                 } else {
                     console.error(`Failed to parse episode file: ${episodePath}`);

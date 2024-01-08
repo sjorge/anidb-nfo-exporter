@@ -2,6 +2,7 @@ import { OptionValues } from '@commander-js/extra-typings';
 import process from 'node:process';
 import fs from 'node:fs';
 import path from 'node:path';
+import braces from 'braces';
 import { Config, readConfig } from './configure';
 import {
     Anime, AnimeNfo,
@@ -113,7 +114,17 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
                 episodeMapper.episodes().forEach((file: EpisodeFile) => {
                     const multiEpisode: Episode[] = [];
-                    for (let ep = parseInt(file.episodeStart); ep <= parseInt(file.episodeEnd); ep++) {
+                    const episodeStart: number = parseInt(file.episodeStart);
+                    const episodeEnd: number = parseInt(file.episodeEnd);
+
+                    let episodes: string[] = [];
+                    if (isNaN(episodeStart) || isNaN(episodeEnd)) {
+                        episodes = [ file.episodeStart ];
+                    } else {
+                        episodes = braces.expand(`{${episodeStart}..${episodeEnd}}`);
+                    }
+
+                    episodes.forEach((ep: string) => {
                         data?.episodes?.forEach((episodeMetadata) => {
                             if (episodeMetadata.episodeNumber == `${ep}`) {
                                 const episode: Episode = {
@@ -146,7 +157,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                                 multiEpisode.push(episode);
                             }
                         });
-                    }
+                    });
 
                     const episodeNfo = new EpisodeNfo(multiEpisode, file.path);
                     episodeNfo.write();

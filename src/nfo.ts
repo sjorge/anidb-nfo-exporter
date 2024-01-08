@@ -210,6 +210,8 @@ export class EpisodeNfo {
             return episode;
         });
 
+        if (this.episode.length == 0) isValid = false;
+
         return isValid;
     }
 
