@@ -148,26 +148,51 @@ export class AniDBMapper {
         if (ids == undefined) return ids;
         if (ids?.anilist) return ids;
 
-        // select official japanese title
-        const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
+        // select official japanese title if available
+        let mainTitle: AnimeTitleVariant[];
+        mainTitle = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
             if ((t.type == "official") && (t.language == 'ja')) {
+                return t;
+            } else if ((t.type == "main") && (t.language == 'x-jat')) {
                 return t;
             }
         });
 
-        let exactMatch = false;
-        const result = await this.clientAnilist?.searchEntry.anime(mainTitle[0].title);
-        result?.media.forEach((media) => {
-            if (media.title.native == mainTitle[0].title) {
-                ids.anilist = media.id;
-                exactMatch = true;
-                this.updateMapping(aid, media.id);
+        let exact_match: number | undefined;
+        let best_match: number | undefined;
+        let best_match_score: number = 0;
+        for (const tv of mainTitle) {
+            const t = tv as AnimeTitleVariant;
+
+            if (exact_match == undefined) {
+                const result = await this.clientAnilist?.searchEntry.anime(t.title);
+                result?.media.forEach((media) => {
+                    const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
+                    if (mt.toLowerCase() == t.title.toLowerCase()) {
+                        exact_match  = media.id;
+                    } else {
+                        const distance: number = levenshtein.get(
+                            t.title.toLowerCase(),
+                            mt.toLowerCase(),
+                            { useCollator: true},
+                        );
+                        if (distance <= this.fuzzyMatchThreshhold) {
+                            if ((best_match == undefined) || (best_match_score > distance)) {
+                                best_match = media.id;
+                                best_match_score = distance;
+                            }
+                        }
+                    }
+                });
             }
-        });
-        if (!exactMatch && (result?.media.length == 1)) {
-            ids.anilist = result?.media[0].id;
-            exactMatch = true;
-            this.updateMapping(aid, result?.media[0].id);
+        }
+
+        if (exact_match !== undefined) {
+            ids.anilist = exact_match;
+            this.updateMapping(aid, exact_match);
+        } else if (best_match !== undefined) {
+            ids.anilist = best_match;
+            this.updateMapping(aid, best_match);
         }
 
         return ids;
