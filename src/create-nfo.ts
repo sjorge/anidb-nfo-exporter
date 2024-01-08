@@ -17,11 +17,30 @@ import {
 } from './anime';
 import { EpisodeMapper, EpisodeFile } from './episode';
 
+
+function log(msg: string, type: "error" | "step" | "done" | "info" = "info"): void {
+    const blank: number = process.stdout.columns ? (process.stdout.columns) : 0;
+    switch(type) {
+        case "error":
+            process.stderr.write(`\r${" ".repeat(blank)}\r[\x1b[31m!!\x1b[0m] ${msg}\n`);
+            break;
+        case "info":
+            process.stdout.write(`\r${" ".repeat(blank)}\r[\x1b[34mII\x1b[0m] ${msg}\n`);
+            break;
+        case "done":
+            process.stdout.write(`\r${" ".repeat(blank)}\r[\x1b[32mOK\x1b[0m] ${msg}\n`);
+            break;
+        case "step":
+            process.stdout.write(`\r${" ".repeat(blank)}\r[\x1b[33m>>\x1b[0m] ${msg}`);
+            break;
+    }
+}
+
 export async function createNfoAction(animeDir: string, opts: OptionValues): Promise<void> {
     // sanity check config (only for udp client)
     const config: Config = readConfig();
     if ((config.anidb.client.name == undefined) || (config.anidb.client.version == undefined)) {
-        console.error("Please run 'configure' command at least once!");
+        log("Please run 'configure' command at least once!", "error");
         process.exitCode = 1;
         return;
     }
@@ -33,22 +52,22 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
     await mapper.refresh();
 
     if(!fs.existsSync(animeDir) || !fs.statSync(animeDir).isDirectory()) {
-        console.error(`Anime directory "${animeDir}" does not exist!`);
+        log(`Anime directory "${animeDir}" does not exist!`, "error");
         process.exitCode = 1;
         return;
     }
 
     let title: string = path.basename(animeDir);
+    log(`{      } ${title}: Identifying ...`, "step");
     if (opts.aid) {
         id = mapper.fromId(parseInt(`${opts.aid}`));
         if (id != null) {
-            console.log(`Matched anidb id (${id.anidb}) from --aid parameter.`);
+            log(`{${id.anidb.toString().padStart(6)}} ${title}: Matched via --aid parameter ...`, "step");
         }
     } else {
-        console.log(`Identifying "${title}" ...`);
         id = mapper.fromTitle(title);
         if (id != null) {
-            console.log(`Matched as anidb id (${id.anidb}) from title ...`);
+            log(`{${id.anidb.toString().padStart(6)}} ${title}: Matched via title search...`, "step");
         }
     }
 
@@ -56,7 +75,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
     if (id?.anidb) id = await mapper.queryAnilistId(id.anidb);
 
     if (id == undefined) {
-        console.error('Failed to map anidb id from title.');
+        log(`{      } ${title}: Failed to match AniDB Id via title search!`, "error");
         process.exitCode = 1;
         return;
     } else {
@@ -66,12 +85,12 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
             }
         });
 
-        console.log(`Retreiving metadata for "${title}" [${id.anidb}]`);
+        log(`{${id.anidb.toString().padStart(6)}} ${title}: Retrieving metadata ...`, "step");
         try {
             // retrieve anidb metadata
             const data = await metadata.get(id);
             if (data == undefined) {
-                console.error('Failed to retreive metadata!');
+                log(`{${id.anidb.toString().padStart(6)}} ${title}: Failed to retreive metadata!`, "error");
                 process.exitCode = 1;
                 return;
             }
@@ -111,8 +130,10 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
             const nfo = new AnimeNfo(anime, animeDir);
             if (await nfo.write(config.anidb.poster)) {
                 const episodeMapper = new EpisodeMapper(animeDir);
+                let episodeNfoWriten = true;
 
-                episodeMapper.episodes().forEach((file: EpisodeFile) => {
+                for (let file of episodeMapper.episodes()) {
+                    file = file as EpisodeFile;
                     const multiEpisode: Episode[] = [];
                     const episodeStart: number = parseInt(file.episodeStart);
                     const episodeEnd: number = parseInt(file.episodeEnd);
@@ -124,8 +145,8 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                         episodes = braces.expand(`{${episodeStart}..${episodeEnd}}`);
                     }
 
-                    episodes.forEach((ep: string) => {
-                        data?.episodes?.forEach((episodeMetadata) => {
+                    for (const ep of episodes) {
+                        for (const episodeMetadata of data.episodes) {
                             if (episodeMetadata.episodeNumber == `${ep}`) {
                                 const episode: Episode = {
                                     uniqueId: [ {type: "anidb", id: episodeMetadata.id, default: true} as UniqueId ],
@@ -156,15 +177,21 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
                                 multiEpisode.push(episode);
                             }
-                        });
-                    });
+                        }
+                    }
 
                     const episodeNfo = new EpisodeNfo(multiEpisode, file.path);
-                    episodeNfo.write();
-                });
+                    if(!await episodeNfo.write()) episodeNfoWriten = false;
+                }
+
+                if (episodeNfoWriten) {
+                    log(`{${id.anidb.toString().padStart(6)}} ${title}: Succesfully written all NFO files.`, "done");
+                } else {
+                    log(`{${id.anidb.toString().padStart(6)}} ${title}: Failed to write all NFO files!`, "error");
+                }
             }
         } catch(err) {
-            console.error((err as Error).message);
+            log(`{      } ${title}: ${(err as Error).message}`, "error");
             process.exitCode = 1;
             return;
         }
