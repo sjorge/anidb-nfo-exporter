@@ -32,8 +32,8 @@ export class EpisodeMapper {
 
     public episodes(): EpisodeFile[] {
         const episodes: EpisodeFile[] = [];
-        const anidbEpisodeTitle = new RegExp(/\s-\s(?<episode>(S|C|T|P|O)?\d+)\s-\s(?<title>.+)\.\w{3}/);
-        const anidbMultiEpisodeTitle = new RegExp(/\s-\s(?<episode>(S|C|T|P|O)?\d+-\d+)\s-\s(?<title>.+)\.\w{3}/);
+        const anidbEpisodeTitle = new RegExp(/\s-\s(?<episode>(S|C|T|P|O|E)?\d+)\s-\s(?<title>.+)\.\w{3}/);
+        const anidbMultiEpisodeTitle = new RegExp(/\s-\s(?<episode>(S|C|T|P|O)?\d+-(S|C|T|P|O)?\d+)\s-\s(?<title>.+)\.\w{3}/);
         const titleCrc32 = new RegExp(/.+(?<crc32>\([A-Za-z0-9]{8}\))/);
 
         fs.readdirSync(this.path).forEach((episodePath: string) => {
