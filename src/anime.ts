@@ -149,8 +149,7 @@ export class AniDBMapper {
         if (ids?.anilist) return ids;
 
         // select official japanese title if available
-        let mainTitle: AnimeTitleVariant[];
-        mainTitle = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
+        const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
             if ((t.type == "official") && (t.language == 'ja')) {
                 return t;
             } else if ((t.type == "main") && (t.language == 'x-jat')) {

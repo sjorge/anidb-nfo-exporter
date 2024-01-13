@@ -19,6 +19,7 @@ program
     })
     .option('--anidb-poster <yes/no>', 'enable anidb poster fetching')
     .option('--anilist-token <token>', 'your anilist http client token')
+    .option('--overwrite-nfo <yes/no>', 'overwrite existing nfo by default')
     .action(configureAction);
 
 program
@@ -30,6 +31,7 @@ program
         if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
         return id;
     })
+    .option('--overwrite-nfo <yes/no>', 'overwrite existing nfo')
     .action(createNfoAction);
 
 program.parse(process.argv);

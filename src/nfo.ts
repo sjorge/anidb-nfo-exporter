@@ -89,7 +89,9 @@ export class AnimeNfo {
         return true;
     }
 
-    public async write(includePoster: boolean = true): Promise<boolean> {
+    public async write(overwriteNfo: boolean = false, includePoster: boolean = true): Promise<boolean> {
+        const nfoPath: string = path.join(this.path, 'tvshow.nfo');
+
         // ensure anime is valid
         if (!this.isValid()) {
             throw new Error('Cannot write invalid data to tvshow.nfo file!');
@@ -133,7 +135,9 @@ export class AnimeNfo {
 
         // write tvshow.nfo
         try {
-            fs.writeFileSync(path.join(this.path, 'tvshow.nfo'), show.up().end({ prettyPrint: true }));
+            if (overwriteNfo || !fs.existsSync(nfoPath)) {
+                fs.writeFileSync(nfoPath, show.up().end({ prettyPrint: true }));
+            }
         } catch (error) {
             return false;
         }
@@ -215,7 +219,7 @@ export class EpisodeNfo {
         return isValid;
     }
 
-    public async write(): Promise<boolean> {
+    public async write(overwriteNfo: boolean = false): Promise<boolean> {
         const nfoPath = path.format({
             dir: path.dirname(this.path),
             name: path.basename(this.path, path.extname(this.path)),
@@ -226,6 +230,9 @@ export class EpisodeNfo {
         if (!this.isValid()) {
             throw new Error(`Cannot write invalid data to "${nfoPath}" file!`);
         }
+
+        // exit if nfo exists and we do not need to overwrite it
+        if (!overwriteNfo && fs.existsSync(nfoPath)) return true;
 
         // create episode.nfo XML data
         const nfo = fragment({ version: '1.0', encoding: 'utf-8' });

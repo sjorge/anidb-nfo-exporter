@@ -45,6 +45,10 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
         return;
     }
 
+    // overwrite NFO
+    let overwrite = config.overwrite_nfo;
+    if (opts.overwriteNfo) overwrite = (`${opts.overwriteNfo}` == "yes");
+
     // identify anime
     let id: AnimeIDs | undefined;
     const metadata = new AniDBMetadata(config);
@@ -132,7 +136,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
             // write NFO
             const nfo = new AnimeNfo(anime, animeDir);
-            if (await nfo.write(config.anidb.poster)) {
+            if (await nfo.write(overwrite, config.anidb.poster)) {
                 const episodeMapper = new EpisodeMapper(animeDir);
                 let episodeNfoWriten = true;
 
@@ -189,7 +193,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                     }
 
                     const episodeNfo = new EpisodeNfo(multiEpisode, file.path);
-                    if(!await episodeNfo.write()) episodeNfoWriten = false;
+                    if(!await episodeNfo.write(overwrite)) episodeNfoWriten = false;
                 }
 
                 if (episodeNfoWriten) {

@@ -23,6 +23,7 @@ export type Config = {
         anidb_age: number;
         mapping_age: number;
     };
+    overwrite_nfo: boolean;
 };
 
 const configFile: string = path.join(os.homedir(), '.config', 'anidbne', 'config.toml');
@@ -40,6 +41,7 @@ export function readConfig(): Config {
             anidb_age: 90,
             mapping_age: 7,
         },
+        overwrite_nfo: false,
     };
 
     if(fs.existsSync(configFile) && fs.statSync(configFile).isFile()) {
@@ -70,7 +72,8 @@ export async function configureAction(opts: OptionValues): Promise<void> {
     config.anidb.client.name = `${opts.anidbClient}`;
     config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
     if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
-    if (opts.anidbPoster) config.anidb.poster = (`${opts.anilistToken}` == "yes");
+    if (opts.anidbPoster) config.anidb.poster = (`${opts.anidbPoster}` == "yes");
+    if (opts.overwriteNfo) config.overwrite_nfo = (`${opts.overwriteNfo}` == "yes");
     if(!writeConfig(config)) {
         console.error(`Failed to update ${configFile}!`);
         process.exitCode = 1;
