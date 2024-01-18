@@ -245,11 +245,6 @@ export class AniDBMapper {
 
                                     if (distance == 0) {
                                         exact_match  = media.id;
-                                    } else if (distance <= this.fuzzyMatchThreshhold) {
-                                        if ((best_match == undefined) || (best_match_score > distance)) {
-                                            best_match = media.id;
-                                            best_match_score = distance;
-                                        }
                                     }
                                 }
                             }
