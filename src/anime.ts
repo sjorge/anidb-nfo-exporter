@@ -173,20 +173,22 @@ export class AniDBMapper {
                     const result = await this.clientAnilist.searchEntry.anime(t.title);
                     result?.media.forEach((media) => {
                         const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
-                        if (mt.toLowerCase() == t.title.toLowerCase()) {
-                            exact_match  = media.id;
-                        } else {
-                            const distance: number = levenshtein.get(
-                                t.title.toLowerCase(),
-                                mt.toLowerCase(),
-                                { useCollator: true},
-                            );
-                            if (distance == 0) {
+                        if ((mt !== undefined) && (mt !== null)) {
+                            if (mt.toLowerCase() == t.title.toLowerCase()) {
                                 exact_match  = media.id;
-                            } else if (distance <= this.fuzzyMatchThreshhold) {
-                                if ((best_match == undefined) || (best_match_score > distance)) {
-                                    best_match = media.id;
-                                    best_match_score = distance;
+                            } else {
+                                const distance: number = levenshtein.get(
+                                    t.title.toLowerCase(),
+                                    mt.toLowerCase(),
+                                    { useCollator: true},
+                                );
+                                if (distance == 0) {
+                                    exact_match  = media.id;
+                                } else if (distance <= this.fuzzyMatchThreshhold) {
+                                    if ((best_match == undefined) || (best_match_score > distance)) {
+                                        best_match = media.id;
+                                        best_match_score = distance;
+                                    }
                                 }
                             }
                         }
@@ -234,7 +236,7 @@ export class AniDBMapper {
                         // ignore tv shows without genre_id 16 (Animation)
                         if ((media.genre_ids?.includes(16)) && (exact_match == undefined)) {
                             const mt = (t.language == 'ja') && (media.original_language == 'ja') ? media.original_name : media.name;
-                            if (mt !== undefined) {
+                            if ((mt !== undefined) && (mt !== null)) {
                                 if (mt.toLowerCase() == t.title.toLowerCase()) {
                                     exact_match  = media.id;
                                 } else {
