@@ -60,7 +60,7 @@ type DataSource = {
 };
 
 export class AniDBMapper {
-    private fuzzyMatchThreshhold: number = 5;
+    private fuzzyMatchThreshhold: number = 3;
     private dataSourceAniDB: DataSource;
     private dataSourcePMM: DataSource;
     private mappingTable: MappingTable = {};
@@ -231,7 +231,8 @@ export class AniDBMapper {
                     const tmdbData = await this.clientTMDB.searchTv({query: t.title, include_adult: true});
 
                     tmdbData?.results?.forEach((media) => {
-                        if (exact_match == undefined) {
+                        // ignore tv shows without genre_id 16 (Animation)
+                        if ((media.genre_ids?.includes(16)) && (exact_match == undefined)) {
                             const mt = (t.language == 'ja') && (media.original_language == 'ja') ? media.original_name : media.name;
                             if (mt !== undefined) {
                                 if (mt.toLowerCase() == t.title.toLowerCase()) {
@@ -245,6 +246,13 @@ export class AniDBMapper {
 
                                     if (distance == 0) {
                                         exact_match  = media.id;
+                                    /* distance greater than 0 causes to many incorrect matches
+                                    } else if (distance <= this.fuzzyMatchThreshhold) {
+                                        if ((best_match == undefined) || (best_match_score > distance)) {
+                                            best_match = media.id;
+                                            best_match_score = distance;
+                                        }
+                                    */
                                     }
                                 }
                             }
