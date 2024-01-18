@@ -77,7 +77,10 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
 
     // fuzzy search for anilist ID and TMDB ID
     if (id?.anidb) {
-        id = await mapper.queryAnilistId(id.anidb);
+        await mapper.queryAnilistId(id.anidb);
+        await mapper.queryTMDBId(id.anidb);
+
+        id = mapper.fromId(id.anidb);
     }
 
     if (id == undefined) {
@@ -110,6 +113,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
             // WARN: tvdb mapping cause weird issues
             //if (id.tvdb) anime.uniqueId.push({type: "tvdb", id: id.tvdb} as UniqueId);
             if (id.anilist) anime.uniqueId.push({type: "anilist", id: id.anilist} as UniqueId)
+            if (id.tmdb) anime.uniqueId.push({type: "tmdb", id: id.tmdb} as UniqueId)
 
             data.titles.forEach((t: AnimeTitleVariant) => {
                 if ((t.type == 'main') && (t.language == 'x-jat')) {

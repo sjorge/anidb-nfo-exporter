@@ -17,6 +17,7 @@ import xml2js from 'xml2js';
 import levenshtein from 'fast-levenshtein';
 import anidbjs, { AniDB_Show } from 'anidbjs';
 import AniList from "anilist-node";
+import { MovieDb } from "moviedb-promise";
 import { Config } from './configure';
 
 export type AnimeTitleVariant = {
@@ -34,6 +35,7 @@ export type AnimeIDs = {
     anilist?: number;
     tvdb?: number;
     tvdbSeason?: number;
+    tmdb?: number;
 };
 
 type MappingTable = {
@@ -64,12 +66,14 @@ export class AniDBMapper {
     private mappingTable: MappingTable = {};
     private titlesTable: TitleTable = {};
     private clientAnilist;
+    private clientTMDB;
 
     public constructor(config: Config) {
         if (config.anilist.token) {
-            this.clientAnilist = new AniList(
-                config.anilist.token,
-            );
+            this.clientAnilist = new AniList(config.anilist.token);
+        }
+        if (config.tmdb.api_key) {
+            this.clientTMDB = new MovieDb(config.tmdb.api_key);
         }
         this.dataSourceAniDB = {
             url: 'https://anidb.net/api/anime-titles.xml.gz',
@@ -148,56 +152,125 @@ export class AniDBMapper {
         if (ids == undefined) return ids;
         if (ids?.anilist) return ids;
 
-        // select official japanese title if available
-        const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
-            if ((t.type == "official") && (t.language == 'ja')) {
-                return t;
-            } else if ((t.type == "main") && (t.language == 'x-jat')) {
-                return t;
-            }
-        });
 
-        let exact_match: number | undefined;
-        let best_match: number | undefined;
-        let best_match_score: number = 0;
-        for (const tv of mainTitle) {
-            const t = tv as AnimeTitleVariant;
+        if (this.clientAnilist) {
+            // select official japanese title if available
+            const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
+                if ((t.type == "official") && (t.language == 'ja')) {
+                    return t;
+                } else if ((t.type == "main") && (t.language == 'x-jat')) {
+                    return t;
+                }
+            });
 
-            if (exact_match == undefined) {
-                const result = await this.clientAnilist?.searchEntry.anime(t.title);
-                result?.media.forEach((media) => {
-                    const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
-                    if (mt.toLowerCase() == t.title.toLowerCase()) {
-                        exact_match  = media.id;
-                    } else {
-                        const distance: number = levenshtein.get(
-                            t.title.toLowerCase(),
-                            mt.toLowerCase(),
-                            { useCollator: true},
-                        );
-                        if (distance <= this.fuzzyMatchThreshhold) {
-                            if ((best_match == undefined) || (best_match_score > distance)) {
-                                best_match = media.id;
-                                best_match_score = distance;
+            let exact_match: number | undefined;
+            let best_match: number | undefined;
+            let best_match_score: number = 0;
+            for (const tv of mainTitle) {
+                const t = tv as AnimeTitleVariant;
+
+                if (exact_match == undefined) {
+                    const result = await this.clientAnilist.searchEntry.anime(t.title);
+                    result?.media.forEach((media) => {
+                        const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
+                        if (mt.toLowerCase() == t.title.toLowerCase()) {
+                            exact_match  = media.id;
+                        } else {
+                            const distance: number = levenshtein.get(
+                                t.title.toLowerCase(),
+                                mt.toLowerCase(),
+                                { useCollator: true},
+                            );
+                            if (distance == 0) {
+                                exact_match  = media.id;
+                            } else if (distance <= this.fuzzyMatchThreshhold) {
+                                if ((best_match == undefined) || (best_match_score > distance)) {
+                                    best_match = media.id;
+                                    best_match_score = distance;
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
             }
-        }
 
-        if (exact_match !== undefined) {
-            ids.anilist = exact_match;
-            this.updateMapping(aid, exact_match);
-        } else if (best_match !== undefined) {
-            ids.anilist = best_match;
-            this.updateMapping(aid, best_match);
+            if (exact_match !== undefined) {
+                ids.anilist = exact_match;
+                this.updateMapping(aid, exact_match);
+            } else if (best_match !== undefined) {
+                ids.anilist = best_match;
+                this.updateMapping(aid, best_match);
+            }
         }
 
         return ids;
     }
 
-    private updateMapping(aid: number, anilist?: number, tvdb?: number, tvdbSeason?: number): void {
+    public async queryTMDBId(aid: number): Promise<AnimeIDs | undefined> {
+        const ids = this.fromId(aid);
+        if (ids == undefined) return ids;
+        if (ids?.tmdb) return ids;
+
+        if (this.clientTMDB) {
+            // select official japanese title if available
+            const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
+                if ((t.type == "official") && (t.language == 'ja')) {
+                    return t;
+                } else if ((t.type == "main") && (t.language == 'x-jat')) {
+                    return t;
+                }
+            });
+
+            let exact_match: number | undefined;
+            let best_match: number | undefined;
+            let best_match_score: number = 0;
+            for (const tv of mainTitle) {
+                const t = tv as AnimeTitleVariant;
+
+                if (exact_match == undefined) {
+                    const tmdbData = await this.clientTMDB.searchTv({query: t.title, include_adult: true});
+
+                    tmdbData?.results?.forEach((media) => {
+                        if (exact_match == undefined) {
+                            const mt = (t.language == 'ja') && (media.original_language == 'ja') ? media.original_name : media.name;
+                            if (mt !== undefined) {
+                                if (mt.toLowerCase() == t.title.toLowerCase()) {
+                                    exact_match  = media.id;
+                                } else {
+                                    const distance: number = levenshtein.get(
+                                        t.title.toLowerCase(),
+                                        mt.toLowerCase(),
+                                        { useCollator: true},
+                                    );
+
+                                    if (distance == 0) {
+                                        exact_match  = media.id;
+                                    } else if (distance <= this.fuzzyMatchThreshhold) {
+                                        if ((best_match == undefined) || (best_match_score > distance)) {
+                                            best_match = media.id;
+                                            best_match_score = distance;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            if (exact_match !== undefined) {
+                ids.tmdb = exact_match;
+                this.updateMapping(aid, undefined, undefined, undefined, exact_match);
+            } else if (best_match !== undefined) {
+                ids.tmdb = best_match;
+                this.updateMapping(aid, undefined, undefined, undefined, best_match);
+            }
+        }
+
+        return ids;
+    }
+
+    private updateMapping(aid: number, anilist?: number, tvdb?: number, tvdbSeason?: number, tmdb?: number): void {
         let ids = this.fromId(aid);
         if (ids == undefined) {
             // initialise new map
@@ -206,6 +279,7 @@ export class AniDBMapper {
                 anilist: anilist,
                 tvdb: tvdb,
                 tvdbSeason: tvdbSeason,
+                tmdb: tmdb,
             } as AnimeIDs;
         } else {
             // update existing map
@@ -214,6 +288,7 @@ export class AniDBMapper {
             if ((tvdb !== undefined) && (tvdbSeason !== undefined)) {
                 ids.tvdbSeason = tvdbSeason;
             }
+            if (tmdb !== undefined) ids.tmdb = tmdb;
         }
         this.mappingTable[aid] = ids;
     }
