@@ -18,6 +18,9 @@ export type Config = {
     anilist: {
         token?: string;
     };
+    tmdb: {
+        api_key?: string;
+    };
     cache: {
         path: string;
         anidb_age: number;
@@ -36,6 +39,7 @@ export function readConfig(): Config {
             poster: false,
         },
         anilist: {},
+        tmdb: {},
         cache: {
             path: path.join(os.homedir(), '.cache', 'anidbne'),
             anidb_age: 90,
@@ -69,10 +73,11 @@ function writeConfig(config: Config): boolean {
 
 export async function configureAction(opts: OptionValues): Promise<void> {
     const config: Config = readConfig();
-    config.anidb.client.name = `${opts.anidbClient}`;
-    config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
-    if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
+    if (opts.anidbClient) config.anidb.client.name = `${opts.anidbClient}`;
+    if (opts.anidbVersion) config.anidb.client.version = parseInt(`${opts.anidbVersion}`, 10);
     if (opts.anidbPoster) config.anidb.poster = (`${opts.anidbPoster}` == "yes");
+    if (opts.tmdbApiKey) config.tmdb.api_key = `${opts.tmdbApiKey}`;
+    if (opts.anilistToken) config.anilist.token = `${opts.anilistToken}`;
     if (opts.overwriteNfo) config.overwrite_nfo = (`${opts.overwriteNfo}` == "yes");
     if(!writeConfig(config)) {
         console.error(`Failed to update ${configFile}!`);

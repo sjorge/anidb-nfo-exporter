@@ -40,7 +40,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
     // sanity check config (only for udp client)
     const config: Config = readConfig();
     if ((config.anidb.client.name == undefined) || (config.anidb.client.version == undefined)) {
-        log("Please run 'configure' command at least once!", "error");
+        log("Please run 'configure' and configure at least --anidb-client and --anidb-version!", "error");
         process.exitCode = 1;
         return;
     }
@@ -75,8 +75,10 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
         }
     }
 
-    // try to complete anilist ID if missing by searching
-    if (id?.anidb) id = await mapper.queryAnilistId(id.anidb);
+    // fuzzy search for anilist ID and TMDB ID
+    if (id?.anidb) {
+        id = await mapper.queryAnilistId(id.anidb);
+    }
 
     if (id == undefined) {
         log(`{      } ${title}: Failed to match AniDB Id via title search!`, "error");
