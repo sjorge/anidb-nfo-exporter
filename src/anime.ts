@@ -53,6 +53,13 @@ type PlexMetaManagerMapping = {
     };
 };
 
+type LocalMapping = {
+    [anidb: string]: {
+        anilist_id?: number;
+        tmdb_id?: number;
+    };
+};
+
 type DataSource = {
     url: string;
     cache: string;
@@ -63,6 +70,7 @@ export class AniDBMapper {
     private fuzzyMatchThreshhold: number = 3;
     private dataSourceAniDB: DataSource;
     private dataSourcePMM: DataSource;
+    private dataSourceLocal: string;
     private mappingTable: MappingTable = {};
     private titlesTable: TitleTable = {};
     private clientAnilist;
@@ -85,6 +93,7 @@ export class AniDBMapper {
             cache: path.join(config.cache.path, 'pmm_anime_ids.json'),
             maxAge: config.cache.mapping_age,
         };
+        this.dataSourceLocal = path.join(config.cache.path, 'local_ids.json');
     }
 
     public toString(): string {
@@ -297,6 +306,7 @@ export class AniDBMapper {
 
         ids.anilist = anilist;
         this.mappingTable[aid] = ids;
+        this.storeLocal(aid, anilist);
         return ids;
     }
 
@@ -313,6 +323,7 @@ export class AniDBMapper {
 
         ids.tmdb = tmdb;
         this.mappingTable[aid] = ids;
+        this.storeLocal(aid, undefined, tmdb);
         return ids;
     }
 
@@ -376,6 +387,30 @@ export class AniDBMapper {
         return true;
     }
 
+    private storeLocal(aid: number, anilist?: number, tmdb?: number): boolean {
+        // update cache
+        try {
+            // ensure cache dir exists
+            fs.mkdirSync(path.dirname(this.dataSourceLocal), { recursive: true, mode: 0o750 });
+
+            let data: LocalMapping = {};
+            if (fs.existsSync(this.dataSourceLocal)) {
+                data = JSON.parse(fs.readFileSync(this.dataSourceLocal, 'utf8')) as LocalMapping;
+            }
+
+            if (data[aid] == undefined) data[aid] = {};
+            if (anilist) data[aid].anilist_id = anilist;
+            if (tmdb) data[aid].tmdb_id = tmdb;
+
+            fs.writeFileSync(this.dataSourceLocal, JSON.stringify(data), { encoding: 'utf8' });
+            fs.chmodSync(this.dataSourceLocal, 0o660);
+        } catch(err) {
+            return false;
+        }
+
+        return true;
+    }
+
     private parseDataSourceAniDB(): boolean {
         let parserStatus = true;
         /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -413,6 +448,19 @@ export class AniDBMapper {
         return true;
     }
 
+    private parseDataSourceLocal(): boolean {
+        if (fs.existsSync(this.dataSourceLocal)) {
+            const data: LocalMapping = JSON.parse(fs.readFileSync(this.dataSourceLocal, 'utf8'));
+
+            for (const key in data) {
+                const ids = data[key];
+                this.updateMapping(parseInt(key), ids.anilist_id, undefined, undefined, ids.tmdb_id);
+            }
+        }
+
+        return true;
+    }
+
     public async refresh(): Promise<boolean> {
         // update datasource cache
         if (!await this.updateDataSource(this.dataSourceAniDB)) return false;
@@ -421,6 +469,7 @@ export class AniDBMapper {
         // parse data
         if (!this.parseDataSourceAniDB()) return false;
         if (!this.parseDataSourcePMM()) return false;
+        if (!this.parseDataSourceLocal()) return false;
 
         return true;
     }
