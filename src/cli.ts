@@ -32,6 +32,16 @@ program
         if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
         return id;
     })
+    .option('--anilistid <id>', 'specify the anilist anime id instead of searching based on directory', (value: string) => {
+        const id = parseInt(value, 10);
+        if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
+        return id;
+    })
+    .option('--tmdbid <id>', 'specify the tmdb tv show id instead of searching based on directory, movie IDs are not supported!', (value: string) => {
+        const id = parseInt(value, 10);
+        if (isNaN(id)) throw new InvalidArgumentError('Expecting a number.');
+        return id;
+    })
     .option('--overwrite-nfo <yes/no>', 'overwrite existing nfo')
     .action(createNfoAction);
 

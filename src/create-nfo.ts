@@ -36,6 +36,13 @@ function log(msg: string, type: "error" | "step" | "done" | "info" = "info"): vo
     }
 }
 
+function logId(id?: AnimeIDs): string {
+    const haveAnidb = id?.anidb ? "\x1b[31m#\x1b[0m" : " ";
+    const haveAnilist = id?.anilist ? "\x1b[34m#\x1b[0m" : " ";
+    const haveTMDB = id?.tmdb ? "\x1b[36m#\x1b[0m" : " ";
+    return `{${haveAnidb}${haveAnilist}${haveTMDB}|${id?.anidb.toString().padStart(6)}}`;
+}
+
 export async function createNfoAction(animeDir: string, opts: OptionValues): Promise<void> {
     // sanity check config (only for udp client)
     const config: Config = readConfig();
@@ -62,44 +69,49 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
     }
 
     let title: string = path.basename(animeDir);
-    log(`{      } ${title}: Identifying ...`, "step");
+    log(`{   |      } ${title}: Identifying ...`, "step");
     if (opts.aid) {
         id = mapper.fromId(parseInt(`${opts.aid}`));
         if (id != null) {
-            log(`{${id.anidb.toString().padStart(6)}} ${title}: Matched via --aid parameter ...`, "step");
+            log(`${logId(id)} ${title}: Matched via --aid parameter ...`, "step");
         }
     } else {
         id = mapper.fromTitle(title);
         if (id != null) {
-            log(`{${id.anidb.toString().padStart(6)}} ${title}: Matched via title search...`, "step");
+            log(`${logId(id)} ${title}: Matched via title search...`, "step");
         }
     }
 
-    // fuzzy search for anilist ID and TMDB ID
-    if (id?.anidb) {
-        await mapper.queryAnilistId(id.anidb);
-        await mapper.queryTMDBId(id.anidb);
-
-        id = mapper.fromId(id.anidb);
-    }
-
     if (id == undefined) {
-        log(`{      } ${title}: Failed to match AniDB Id via title search!`, "error");
+        log(`{   |      } ${title}: Failed to match AniDB Id via title search!`, "error");
         process.exitCode = 1;
         return;
     } else {
+        // complate anilist and tmdb IDs
+        if (opts.anilistid){
+            id = mapper.linkAnilist(id.anidb, parseInt(`${opts.anilistid}`));
+        } else {
+            id = await mapper.queryAnilistId(id.anidb);
+        }
+        if (opts.tmdbid) {
+            id = mapper.linkTMDB(id.anidb, parseInt(`${opts.tmdbid}`));
+        } else {
+            id = await mapper.queryTMDBId(id.anidb);
+        }
+        log(`${logId(id)} ${title}: Tried to complete missing IDs by fuzzy search ...`, "step");
+
         mapper.titleFromId(id.anidb)?.forEach((t: AnimeTitleVariant) => {
             if ((t.type == 'main') && (t.language == 'x-jat')) {
                 title = t.title;
             }
         });
 
-        log(`{${id.anidb.toString().padStart(6)}} ${title}: Retrieving metadata ...`, "step");
+        log(`${logId(id)} ${title}: Retrieving metadata ...`, "step");
         try {
             // retrieve anidb metadata
             const data = await metadata.get(id);
             if (data == undefined) {
-                log(`{${id.anidb.toString().padStart(6)}} ${title}: Failed to retreive metadata!`, "error");
+                log(`${logId(id)} ${title}: Failed to retreive metadata!`, "error");
                 process.exitCode = 1;
                 return;
             }
@@ -203,13 +215,13 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
                 }
 
                 if (episodeNfoWriten) {
-                    log(`{${id.anidb.toString().padStart(6)}} ${title}: Succesfully written all NFO files.`, "done");
+                    log(`${logId(id)} ${title}: Succesfully written all NFO files.`, "done");
                 } else {
-                    log(`{${id.anidb.toString().padStart(6)}} ${title}: Failed to write all NFO files!`, "error");
+                    log(`${logId(id)} ${title}: Failed to write all NFO files!`, "error");
                 }
             }
         } catch(err) {
-            log(`{      } ${title}: ${(err as Error).message}`, "error");
+            log(`{   |      } ${title}: ${(err as Error).message}`, "error");
             process.exitCode = 1;
             return;
         }
