@@ -147,12 +147,18 @@ export class AniDBMapper {
         return this.titlesTable[aid];
     }
 
-    public async queryAnilistId(aid: number): Promise<AnimeIDs | undefined> {
-        const ids = this.fromId(aid);
-        if (ids == undefined) return ids;
-        if (ids?.anilist) return ids;
+    public async queryAnilistId(aid: number): Promise<AnimeIDs> {
+        let ids = this.fromId(aid);
+        if (ids == undefined) {
+            ids = {
+                anidb: aid,
+            } as AnimeIDs;
+        }
 
+        // quick return if we already have an anilist id
+        if (ids.anilist) return ids;
 
+        // search for anilist id by search + comparing main or official japanese title
         if (this.clientAnilist) {
             // select official japanese title if available
             const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
@@ -197,22 +203,27 @@ export class AniDBMapper {
             }
 
             if (exact_match !== undefined) {
-                ids.anilist = exact_match;
-                this.updateMapping(aid, exact_match);
+                return this.linkAnilist(aid, exact_match);
             } else if (best_match !== undefined) {
-                ids.anilist = best_match;
-                this.updateMapping(aid, best_match);
+                return this.linkAnilist(aid, best_match);
             }
         }
 
         return ids;
     }
 
-    public async queryTMDBId(aid: number): Promise<AnimeIDs | undefined> {
-        const ids = this.fromId(aid);
-        if (ids == undefined) return ids;
-        if (ids?.tmdb) return ids;
+    public async queryTMDBId(aid: number): Promise<AnimeIDs> {
+        let ids = this.fromId(aid);
+        if (ids == undefined) {
+            ids = {
+                anidb: aid,
+            } as AnimeIDs;
+        }
 
+        // quick return if we already have an tmdb id
+        if (ids.tmdb) return ids;
+
+        // search for tmdb id by search + comparing main or official japanese title
         if (this.clientTMDB) {
             // select official japanese title if available
             const mainTitle: AnimeTitleVariant[] = this.titleFromId(aid).filter((t: AnimeTitleVariant) => {
@@ -264,19 +275,50 @@ export class AniDBMapper {
             }
 
             if (exact_match !== undefined) {
-                ids.tmdb = exact_match;
-                this.updateMapping(aid, undefined, undefined, undefined, exact_match);
+                return this.linkTMDB(aid, exact_match);
             } else if (best_match !== undefined) {
-                ids.tmdb = best_match;
-                this.updateMapping(aid, undefined, undefined, undefined, best_match);
+                return this.linkTMDB(aid, best_match);
             }
         }
 
         return ids;
     }
 
+    public linkAnilist(aid: number, anilist: number): AnimeIDs {
+        let ids = this.fromId(aid);
+
+        if (ids == undefined) {
+            // initialise new map
+            ids = {
+                anidb: aid,
+                anilist: anilist,
+            } as AnimeIDs;
+        }
+
+        ids.anilist = anilist;
+        this.mappingTable[aid] = ids;
+        return ids;
+    }
+
+    public linkTMDB(aid: number, tmdb: number): AnimeIDs {
+        let ids = this.fromId(aid);
+
+        if (ids == undefined) {
+            // initialise new map
+            ids = {
+                anidb: aid,
+                tmdb: tmdb,
+            } as AnimeIDs;
+        }
+
+        ids.tmdb = tmdb;
+        this.mappingTable[aid] = ids;
+        return ids;
+    }
+
     private updateMapping(aid: number, anilist?: number, tvdb?: number, tvdbSeason?: number, tmdb?: number): void {
         let ids = this.fromId(aid);
+
         if (ids == undefined) {
             // initialise new map
             ids = {
@@ -295,6 +337,7 @@ export class AniDBMapper {
             }
             if (tmdb !== undefined) ids.tmdb = tmdb;
         }
+
         this.mappingTable[aid] = ids;
     }
 
