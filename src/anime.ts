@@ -293,7 +293,7 @@ export class AniDBMapper {
         return ids;
     }
 
-    public linkAnilist(aid: number, anilist: number): AnimeIDs {
+    public linkAnilist(aid: number, anilist: number, store: boolean = true): AnimeIDs {
         let ids = this.fromId(aid);
 
         if (ids == undefined) {
@@ -306,11 +306,11 @@ export class AniDBMapper {
 
         ids.anilist = anilist;
         this.mappingTable[aid] = ids;
-        this.storeLocal(aid, anilist);
+        if (store) this.storeLocal(aid, anilist);
         return ids;
     }
 
-    public linkTMDB(aid: number, tmdb: number): AnimeIDs {
+    public linkTMDB(aid: number, tmdb: number, store: boolean = true): AnimeIDs {
         let ids = this.fromId(aid);
 
         if (ids == undefined) {
@@ -323,7 +323,7 @@ export class AniDBMapper {
 
         ids.tmdb = tmdb;
         this.mappingTable[aid] = ids;
-        this.storeLocal(aid, undefined, tmdb);
+        if (store) this.storeLocal(aid, undefined, tmdb);
         return ids;
     }
 
@@ -453,8 +453,17 @@ export class AniDBMapper {
             const data: LocalMapping = JSON.parse(fs.readFileSync(this.dataSourceLocal, 'utf8'));
 
             for (const key in data) {
-                const ids = data[key];
-                this.updateMapping(parseInt(key), ids.anilist_id, undefined, undefined, ids.tmdb_id);
+                const localIds = data[key];
+                const ids = this.fromId(parseInt(key));
+
+                // local IDs have lower priority than other sources, only update when unset
+                this.updateMapping(
+                    parseInt(key),
+                    (ids?.anilist) ? ids.anilist : localIds.anilist_id,
+                    undefined,
+                    undefined,
+                    (ids?.tmdb) ? ids.tmdb : localIds.tmdb_id,
+                );
             }
         }
 
