@@ -56,6 +56,9 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
     let overwrite = config.overwrite_nfo;
     if (opts.overwriteNfo) overwrite = (`${opts.overwriteNfo}` == "yes");
 
+    // force update
+    const forceUpdate = (opts.forceUpdate) ? (`${opts.forceUpdate}` == "yes") : false;
+
     // identify anime
     let id: AnimeIDs | undefined;
     const metadata = new AniDBMetadata(config);
@@ -109,7 +112,7 @@ export async function createNfoAction(animeDir: string, opts: OptionValues): Pro
         log(`${logId(id)} ${title}: Retrieving metadata ...`, "step");
         try {
             // retrieve anidb metadata
-            const data = await metadata.get(id);
+            const data = await metadata.get(id, forceUpdate);
             if (data == undefined) {
                 log(`${logId(id)} ${title}: Failed to retreive metadata!`, "error");
                 process.exitCode = 1;

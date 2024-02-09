@@ -504,12 +504,12 @@ export class AniDBMetadata {
     }
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    public async get(id: AnimeIDs): Promise<AniDB_Show | undefined> {
+    public async get(id: AnimeIDs, force: boolean = false): Promise<AniDB_Show | undefined> {
         let metadata: undefined;
 
         // skip if cache is fresh
         const dbCacheFile: string = path.join(this.cachePath, 'anidb', `${id.anidb}.json`);
-        if (fs.existsSync(dbCacheFile)) {
+        if (fs.existsSync(dbCacheFile) && !force) {
             const cacheStats = fs.statSync(dbCacheFile);
             if (((new Date().getTime() - cacheStats.mtimeMs) / 1000 / 3600 / 24) < this.cacheAge) {
                 return JSON.parse(fs.readFileSync(dbCacheFile, 'utf8')) as AniDB_Show;

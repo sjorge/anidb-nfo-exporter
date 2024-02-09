@@ -43,6 +43,7 @@ program
         return id;
     })
     .option('--overwrite-nfo <yes/no>', 'overwrite existing nfo')
+    .option('--force-update <yes/no>', 'force anidb metadata update')
     .action(createNfoAction);
 
 program.parse(process.argv);
