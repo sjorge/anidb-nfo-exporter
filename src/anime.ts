@@ -89,7 +89,7 @@ export class AniDBMapper {
             maxAge: config.cache.mapping_age,
         };
         this.dataSourcePMM = {
-            url: 'https://raw.githubusercontent.com/meisnate12/Plex-Meta-Manager-Anime-IDs/master/pmm_anime_ids.json',
+            url: 'https://raw.githubusercontent.com/Kometa-Team/Anime-IDs/master/anime_ids.json',
             cache: path.join(config.cache.path, 'pmm_anime_ids.json'),
             maxAge: config.cache.mapping_age,
         };
