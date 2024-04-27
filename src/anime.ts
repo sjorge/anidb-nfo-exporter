@@ -23,6 +23,7 @@ import { Config } from './configure';
 export type AnimeTitleVariant = {
     title: string;
     type?: string;
+    year?: number;
     language: string;
 }
 
@@ -178,6 +179,25 @@ export class AniDBMapper {
                 }
             });
 
+            // extract year variants
+            for (const tv of mainTitle) {
+                const titleYearRegEx = new RegExp(/^(.+)\s\((\d{4})\)$/);
+                const t = tv as AnimeTitleVariant;
+
+                if(t.year !== undefined) continue;
+
+                const tilteYearMatch: RegExpExecArray | null = titleYearRegEx.exec(t.title);
+                if (tilteYearMatch !== null) {
+                    const nt: AnimeTitleVariant = {
+                        title: tilteYearMatch[1],
+                        year: parseInt(tilteYearMatch[2]),
+                        type: t.type,
+                        language: t.language,
+                    };
+                    mainTitle.push(nt);
+                }
+            }
+
             let exact_match: number | undefined;
             let best_match: number | undefined;
             let best_match_score: number = 0;
@@ -186,28 +206,53 @@ export class AniDBMapper {
 
                 if (exact_match == undefined) {
                     const result = await this.clientAnilist.searchEntry.anime(t.title);
-                    result?.media.forEach((media) => {
-                        const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
-                        if ((mt !== undefined) && (mt !== null)) {
-                            if (mt.toLowerCase() == t.title.toLowerCase()) {
-                                exact_match  = media.id;
-                            } else {
-                                const distance: number = levenshtein.get(
-                                    t.title.toLowerCase(),
-                                    mt.toLowerCase(),
-                                    { useCollator: true},
-                                );
-                                if (distance == 0) {
+                    if (result?.media) {
+                        for (const media of result.media) {
+                            const mt = (t.language == 'ja') ? media.title.native : media.title.romaji;
+                            if ((mt !== undefined) && (mt !== null)) {
+                                if (t.year !== undefined) {
+                                    // WARN: titles with an extract year should come first so we don't match
+                                    //       the first season with the exact_match filter!
+                                    //
+                                    //       we multiple fuzzyMatchThreshhold by 4 for English
+                                    //       and by 1.5 for Japanese to cover things like 'Xth season'
+                                    if (this.clientAnilist) {
+                                        const mediaData = await this.clientAnilist.media.anime(media.id);
+                                        if (mediaData?.seasonYear == t.year) {
+                                            const distance: number = levenshtein.get(
+                                                t.title.toLowerCase(),
+                                                mt.toLowerCase(),
+                                                { useCollator: true},
+                                            );
+
+                                            if (distance <= (this.fuzzyMatchThreshhold * ((t.language == 'ja') ? 1.5 : 4))) {
+                                                if ((best_match == undefined) || (best_match_score > distance)) {
+                                                    best_match = media.id;
+                                                    best_match_score = distance;
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (mt.toLowerCase() == t.title.toLowerCase()) {
                                     exact_match  = media.id;
-                                } else if (distance <= this.fuzzyMatchThreshhold) {
-                                    if ((best_match == undefined) || (best_match_score > distance)) {
-                                        best_match = media.id;
-                                        best_match_score = distance;
+                                } else {
+                                    const distance: number = levenshtein.get(
+                                        t.title.toLowerCase(),
+                                        mt.toLowerCase(),
+                                        { useCollator: true},
+                                    );
+                                    if (distance == 0) {
+                                        exact_match  = media.id;
+                                    } else if (distance <= this.fuzzyMatchThreshhold) {
+                                        if ((best_match == undefined) || (best_match_score > distance)) {
+                                            best_match = media.id;
+                                            best_match_score = distance;
+                                        }
                                     }
                                 }
                             }
                         }
-                    });
+                    }
                 }
             }
 
@@ -245,7 +290,8 @@ export class AniDBMapper {
 
             let exact_match: number | undefined;
             let best_match: number | undefined;
-            let best_match_score: number = 0;
+            //const best_match_score: number = 0;
+
             for (const tv of mainTitle) {
                 const t = tv as AnimeTitleVariant;
 
@@ -354,6 +400,7 @@ export class AniDBMapper {
 
     private updateTitles(aid: number, titles: AnimeTitleVariant[]): void {
         this.titlesTable[aid] = titles;
+        this.updateMapping(aid); // create a empty ID mapping for every known aid
     }
 
     private async updateDataSource(ds: DataSource): Promise<boolean> {
@@ -471,16 +518,24 @@ export class AniDBMapper {
     }
 
     public async refresh(): Promise<boolean> {
-        // update datasource cache
-        if (!await this.updateDataSource(this.dataSourceAniDB)) return false;
-        if (!await this.updateDataSource(this.dataSourcePMM)) return false;
+        let result = true;
 
-        // parse data
-        if (!this.parseDataSourceAniDB()) return false;
-        if (!this.parseDataSourcePMM()) return false;
-        if (!this.parseDataSourceLocal()) return false;
+        // update datasource cache and parse data
+        if (await this.updateDataSource(this.dataSourceAniDB)) {
+            // WARN: AniDB is required for PMM and Local
+            //       return imediatly on failure
+            if (!this.parseDataSourceAniDB()) return false;
 
-        return true;
+            if (await this.updateDataSource(this.dataSourcePMM)) {
+                if (!this.parseDataSourcePMM()) result = false;
+            }
+
+            if (!this.parseDataSourceLocal()) result = false;
+
+            return result;
+        }
+
+        return false;
     }
 }
 
