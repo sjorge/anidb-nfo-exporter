@@ -106,8 +106,20 @@ export class AnimeNfo {
 
         this.anime.uniqueId.forEach((id: UniqueId) => {
             const nfoUniqueId = show.ele('uniqueid');
+            let jellyfinCompatibleType = id.type;
+            switch (jellyfinCompatibleType) {
+                case "anidb":
+                    jellyfinCompatibleType = "AniDB";
+                    break;
+                case "anilist":
+                    jellyfinCompatibleType = "AniList";
+                    break;
+                case "tmdb":
+                    jellyfinCompatibleType = "Tmdb";
+                    break;
+            }
             nfoUniqueId.txt(`${id.id}`);
-            nfoUniqueId.att('type', id.type);
+            nfoUniqueId.att('type', jellyfinCompatibleType);
             nfoUniqueId.att('default', `${id.default === true}`)
         });
 
@@ -243,8 +255,20 @@ export class EpisodeNfo {
 
             episode.uniqueId.forEach((id: UniqueId) => {
                 const nfoUniqueId = episodedetails.ele('uniqueid');
+                let jellyfinCompatibleType = id.type;
+                switch (jellyfinCompatibleType) {
+                    case "anidb":
+                        jellyfinCompatibleType = "AniDB";
+                        break;
+                    case "anilist":
+                        jellyfinCompatibleType = "AniList";
+                        break;
+                    case "tmdb":
+                        jellyfinCompatibleType = "Tmdb";
+                        break;
+                }
                 nfoUniqueId.txt(`${id.id}`);
-                nfoUniqueId.att('type', id.type);
+                nfoUniqueId.att('type', jellyfinCompatibleType);
                 nfoUniqueId.att('default', `${id.default === true}`)
             });
 
