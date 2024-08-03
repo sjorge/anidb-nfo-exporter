@@ -21,7 +21,7 @@
     "@types/braces": ">=3.0.4",
     "@types/fast-levenshtein": "^0.0.4",
     "@types/node": "^20.10.5",
-    "@types/xml2js": "^0.4.14",
+    "@types/xml2js": ">=0.4.14",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "eslint": "^8.56.0",
@@ -37,11 +37,12 @@
     "deepmerge-ts": "^5.1.0",
     "fast-levenshtein": "^3.0.0",
     "moviedb-promise": "^4.0.3",
-    "xml2js": "^0.6.2",
+    "xml2js": ">=0.5.0",
     "xmlbuilder2": "^3.1.1"
   },
   "overrides": {
     "whatwg-url": "13.0.0",
-    "follow-redirects": ">=1.15.6"
+    "follow-redirects": ">=1.15.6",
+    "xml2js": ">=0.5.0"
   }
 }
