@@ -31,7 +31,7 @@
     "@iarna/toml": "^2.2.5",
     "anidbjs": "^2.4.4",
     "anilist-node": "^1.14.0",
-    "axios": "^1.6.3",
+    "axios": ">=1.7.3",
     "braces": ">=3.0.3",
     "commander": "^11.1.0",
     "deepmerge-ts": "^5.1.0",
