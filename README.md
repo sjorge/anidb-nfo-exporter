@@ -1,3 +1,11 @@
+```
+###############################################################
+####                                                       ####
+#### DEPRECATED Replace by https://github.com/sjorge/akiba ####
+####                                                       ####
+###############################################################
+```
+
 ## anidb nfo expoter
 This is a helper to export tvshow.nfo and episode.nfo files to help jellyfin match anime when using `adbren` to name your anime.
 
